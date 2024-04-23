@@ -7,5 +7,7 @@ Dataset Info:
 
 ## Betrügerische Kontotransationen (Klassifikation)
 Problemstellung: Vorhersage von betrügerischen Kontotransaktion (Klassifikation)
+
 Dataset: https://www.kaggle.com/datasets/vardhansiramdasu/fraudulent-transactions-prediction
+
 Spezial: Highly inbalanced
