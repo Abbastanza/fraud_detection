@@ -1,0 +1,11 @@
+# Milestone 1 
+
+```{r}
+# for code
+```
+
+## Zielsetzung des Projekts (qualitativ und quantitative Ziele) [4 Punkte]
+• Beschreibung der Datengrundlage (Refenzdatensatz) [4 Punkte]
+• Projektorganisation und Aufgabenteilung [4 Punkte]
+• Plan für die Ausarbeitung des Projekts (Workflow), Backlog [4 Punkte]
+• Beantwortung von Fragen [4 Punkte]
