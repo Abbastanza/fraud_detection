@@ -4,6 +4,17 @@
 # for code
 ```
 * Zielsetzung des Projekts (qualitativ und quantitative Ziele) [4 Punkte] Flo
+Qualitative Ziele:
+- Entwicklung eines robusten Klassifikationsmodells: Entwickeln eines Modells, das effektiv zwischen betrügerischen und legitimen Transaktionen unterscheiden kann, unter besonderer Berücksichtigung des stark inbalanced Datensatzes.
+- Erkennung von Mustern und Anomalien: Identifizierung spezifischer Muster oder Anomalien in den Daten, die auf betrügerische Aktivitäten hindeuten könnten.
+- Nutzbarkeit und Zugänglichkeit: Erstellung einer benutzerfreundlichen Shiny-Anwendung, die es Endnutzern ermöglicht, Vorhersagen einfach zu generieren und die Ergebnisse intuitiv zu verstehen.
+
+Quantitative Ziele:
+- ROC AUC-Wert: Erzielen eines ROC AUC-Wertes von mindestens 0.90, was auf eine ausgezeichnete Trennfähigkeit des Modells zwischen betrügerischen und legitimen Transaktionen hinweist.
+- Hoher Recall für betrügerische Transaktionen: Streben nach einem Recall-Wert von über 90% bei betrügerischen Transaktionen, um sicherzustellen, dass die meisten tatsächlichen Betrugsfälle korrekt erkannt werden. Dies ist besonders wichtig, da das Übersehen von Betrug schwerwiegendere Konsequenzen haben kann als falsche Alarme.
+- Ausgeglichener F1-Score für betrügerische Transaktionen: Ziel ist ein F1-Score von über 85% für die Klasse der betrügerischen Transaktionen, was ein gutes Gleichgewicht zwischen Präzision und Recall darstellt, wobei der Schwerpunkt auf dem Recall liegt.
+- Schnelle Antwortzeiten der Shiny-Anwendung: Die Shiny-Anwendung sollte in der Lage sein, innerhalb weniger Sekunden Vorhersagen zu liefern, um effektive Echtzeitanwendungen zu ermöglichen.
+
 * Beschreibung der Datengrundlage (Refenzdatensatz) [4 Punkte] Dani
 * Projektorganisation und Aufgabenteilung [4 Punkte] Valerie
 * Plan für die Ausarbeitung des Projekts (Workflow), Backlog [4 Punkte]  Michaela
