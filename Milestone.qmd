@@ -34,5 +34,35 @@ execute:
 
 ## Beschreibung der Datengrundlage (Refenzdatensatz) [4 Punkte] Dani
 ## Projektorganisation und Aufgabenteilung [4 Punkte] Valerie
-## Plan für die Ausarbeitung des Projekts (Workflow), Backlog [4 Punkte]  Michaela
-## Beantwortung von Fragen [4 Punkte] ALLE 
+## Plan für die Ausarbeitung des Projekts (Workflow), Backlog [4 Punkte] Michaela
+
+### Projektplan und Workflow {.scrollable}
+
+1. **Datenexploration und -vorbereitung**
+   - Datenimport und -exploration
+   - Behandlung von fehlenden oder doppelten Werten
+   - Feature Engineering und Transformation
+   
+2. **Modellentwicklung**
+   - Aufteilung der Daten in Trainings- und Testdaten
+      - Behandlung des Klassenungleichgewichts durch Sampling? 
+   - Anwendung verschiedener Klassifikationsalgorithmen
+      - Behandlung des Klassenungleichgewichts durch Wahl geeigneter Verfahren, die mit unbalancierten Daten umgehen können und/oder Gewichtung erlauben
+   - Hyperparameter-Optimierung und Modellbewertung
+
+3. **Modellvalidierung und -interpretation**
+   - Evaluation der Modelle anhand der festgelegten quantitativen Ziele, z.B. ROC AUC, Recall, F1-Score
+      - Behandlung des Klassenungleichgewichts durch Wahl geeigneter Metriken
+   - Interpretation der Modellergebnisse und Identifikation/Interpretation wichtiger Features
+   
+4. **Entwicklung der Shiny-Anwendung:**
+   - Implementierung einer benutzerfreundlichen Shiny-Anwendung
+   - Integration des entwickelten Modells zur Generierung von Vorhersagen
+   - Optimierung der Antwortzeiten für Echtzeitanwendungen
+
+5. **Dokumentation und Präsentation**
+   - Erstellung von Dokumentationen und Präsentationen
+   - Vorbereitung für die Abschlusspräsentation und -abgabe
+
+## Fragen? Anmerkungen? Diskussion? 
+
