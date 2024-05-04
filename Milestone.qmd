@@ -33,6 +33,25 @@ execute:
 - Schnelle Antwortzeiten der Shiny-Anwendung: Die Shiny-Anwendung sollte in der Lage sein, innerhalb weniger Sekunden Vorhersagen zu liefern, um effektive Echtzeitanwendungen zu ermöglichen.
 
 ## Beschreibung der Datengrundlage (Refenzdatensatz) [4 Punkte] Dani
+
+Die Grundlage des Kaggle-Datensatzes "Fraudulent Transactions Prediction" besteht aus Transaktionsdaten, die für die Erkennung von Betrug im Online-Zahlungsverkehr verwendet werden. Der Datensatz enthält verschiedene Attribute wie "step", "type", "amount", "oldbalanceOrg", "newbalanceOrig", "nameDest", "oldbalanceDest", "newbalanceDest", "isFraud" und "isFlaggedFraud". Allerdings sind die Balance-Daten ("oldbalanceOrg", "newbalanceOrig", "oldbalanceDest", "newbalanceDest") nicht immer vollständig, da viele dieser Werte 0 sind.
+
+Die Zielvariable "isFraud" ist außerdem unbalanciert, da 99.87% der Transaktionen nicht betrügerisch sind. Zudem scheint es keine signifikanten Korrelationen zwischen den Variablen zu geben, mit Ausnahme der Balance-Variablen, die viele Null-Werte enthalten und damit korrelieren .
+
+Die Attribute im Überblick:
+
+step: Zeiteinheit, wobei ein Schritt einer Stunde entspricht.
+type: Art der Online-Transaktion, z. B. "CASH_OUT", "PAYMENT", "CASH_IN", "TRANSFER" oder "DEBIT".
+amount: Betrag der Transaktion.
+nameOrig: ID des Ursprungs-Kontos.
+oldbalanceOrg: Anfangsguthaben des Ursprungs-Kontos.
+newbalanceOrig: Guthaben des Ursprungs-Kontos nach der Transaktion.
+nameDest: ID des Ziel-Kontos.
+oldbalanceDest: Anfangsguthaben des Ziel-Kontos.
+newbalanceDest: Guthaben des Ziel-Kontos nach der Transaktion.
+isFraud: Kennzeichnet, ob es sich um einen Betrugsfall handelt oder nicht.
+isFlaggedFraud: Kennzeichnet, ob die Transaktion als möglicher Betrugsfall markiert wurde.
+
 ## Projektorganisation und Aufgabenteilung [4 Punkte] Valerie
 ## Plan für die Ausarbeitung des Projekts (Workflow), Backlog [4 Punkte] Michaela
 
