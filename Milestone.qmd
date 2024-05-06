@@ -20,7 +20,7 @@ execute:
 # Milestone 1 
 
 
-## Zielsetzung des Projekts (qualitativ und quantitative Ziele) [4 Punkte] Flo
+## Zielsetzung des Projekts (qualitativ und quantitative Ziele)
 ### Qualitative Ziele: {.scrollable}
 - Entwicklung eines robusten Klassifikationsmodells: Entwickeln eines Modells, das effektiv zwischen betrügerischen und legitimen Transaktionen unterscheiden kann, unter besonderer Berücksichtigung des stark inbalanced Datensatzes.
 - Erkennung von Mustern und Anomalien: Identifizierung spezifischer Muster oder Anomalien in den Daten, die auf betrügerische Aktivitäten hindeuten könnten.
@@ -32,7 +32,7 @@ execute:
 - Ausgeglichener F1-Score für betrügerische Transaktionen: Ziel ist ein F1-Score von über 85% für die Klasse der betrügerischen Transaktionen, was ein gutes Gleichgewicht zwischen Präzision und Recall darstellt, wobei der Schwerpunkt auf dem Recall liegt.
 - Schnelle Antwortzeiten der Shiny-Anwendung: Die Shiny-Anwendung sollte in der Lage sein, innerhalb weniger Sekunden Vorhersagen zu liefern, um effektive Echtzeitanwendungen zu ermöglichen.
 
-## Beschreibung der Datengrundlage (Refenzdatensatz) [4 Punkte] Dani
+## Beschreibung der Datengrundlage (Refenzdatensatz) 
 
 Die Grundlage des Kaggle-Datensatzes "Fraudulent Transactions Prediction" besteht aus Transaktionsdaten, die für die Erkennung von Betrug im Online-Zahlungsverkehr verwendet werden. Der Datensatz enthält verschiedene Attribute wie "step", "type", "amount", "oldbalanceOrg", "newbalanceOrig", "nameDest", "oldbalanceDest", "newbalanceDest", "isFraud" und "isFlaggedFraud". Allerdings sind die Balance-Daten ("oldbalanceOrg", "newbalanceOrig", "oldbalanceDest", "newbalanceDest") nicht immer vollständig, da viele dieser Werte 0 sind.
 
@@ -53,9 +53,23 @@ isFraud: Kennzeichnet, ob es sich um einen Betrugsfall handelt oder nicht.
 isFlaggedFraud: Kennzeichnet, ob die Transaktion als möglicher Betrugsfall markiert wurde.
 
 ## Projektorganisation und Aufgabenteilung [4 Punkte] Valerie
-## Plan für die Ausarbeitung des Projekts (Workflow), Backlog [4 Punkte] Michaela
+## Plan für die Ausarbeitung des Projekts (Workflow), Backlog 
 
 ### Projektplan und Workflow {.scrollable}
+
+Der Backlog des Projekts befindet sich im zugehörigen [Repository](https://github.com/users/Abbastanza/projects/3) und enthält die unten aufgeführten Aufgaben:
+
+::: {layout-ncol=2}
+
+![Backlog](img/kanban.png)
+
+
+![Timetable](img/workflow.png)
+
+:::
+
+
+
 
 1. **Datenexploration und -vorbereitung**
    - Datenimport und -exploration
