@@ -19,6 +19,9 @@ execute:
 
 # Milestone 1 
 
+## Motivation
+Betrug und andere Wirtschaftsdelikte sind weitverbreitet: In der PwC's Global Economic Crime and Fraud Survey 2022 waren 46% der Organisationen betroffen mit Schäden von vielen Millionen Euro. Dabei sind nicht nur Banken und Finanzsektor betroffen, sondern auch Branchen wie Einzelhandel bis Versicherungen und Gesundheit. Gleichzeit bietet die Vielzahl und Menge an Daten genau den Vorteil (z.B.: 2,3 Milliarden Visa und Mastercards in 2021) für Machine Learning, welches Fraud Detection in unterschiedlichen Branchen schnell, effizient und in großem Umfang ermöglichen kann.
+Quelle: https://www.teradata.com/insights/ai-and-machine-learning/fraud-detection-machine-learning
 
 ## Zielsetzung des Projekts (qualitativ und quantitative Ziele)
 ### Qualitative Ziele: {.scrollable}
@@ -52,7 +55,18 @@ newbalanceDest: Guthaben des Ziel-Kontos nach der Transaktion.
 isFraud: Kennzeichnet, ob es sich um einen Betrugsfall handelt oder nicht.
 isFlaggedFraud: Kennzeichnet, ob die Transaktion als möglicher Betrugsfall markiert wurde.
 
-## Projektorganisation und Aufgabenteilung [4 Punkte] Valerie
+## Projektorganisation und Aufgabenteilung 
+Wir haben eine reine/autonome Projektorganisation, d.h. das Team arbeitet ausschließlich für die o.g. Ziele. Synergien könnten sich aus dem Python-Projekt mit identischer Gruppe ergeben, wobei die Organisation getrennt stattfindet. Da das Projekt ausreichend überschaubar ist, wird auf eine starke Struktur im Projektteam verzichte: z.B. gibt es keinen (ausschließlichen organisatorisch tätigen) Projektleiter, sondern alle vier Mitglieder sind hierarchisch gleichgestellt. Umso wichtiger werden Aufgabenteilung und Verantwortungen in Teilbereichen, die entsprechend der Stärken der Mitglieder verteilt werden.
+Die Erstellung und (hauptverantwortliche) Verwaltung in Github wurde von MH übernommen. Für die finalen Abgaben der (Zwischen-)Präsentationen ist VH verantwortlich. Die Aufgabenzuweisung und -organisation erfolgt über Github, kurzfristige Kommunikation und Absprachen erfolgen über eine zu Beginn des Projekts gegründete Chatgruppe. Ein Kick-Off-Meeting fand am 28.04.2024 statt, wo dieses Vorgehen besprochen wurde.
+
+Es ergeben sich durch Vorgaben der Lehrveranstaltung vier Milestones, die sich z.B. im Kanban widerspiegeln und detaillierter im nächsten Kapitel aufgezeigt werden.
+Milestone 1/4 (R3): Projektpräsentation am 07.05.2024 
+Milestone 2/4 (R5): Zwischenpräsentation am 21.05.2024
+Milestone 3/4: (R7) Projektabschlussbericht am 04.06.2024
+Milestone 4/4: (R7) Abschlusspräsentation 04.06.2024
+
+Das Projekt arbeitet agil, in zweiwöchigen Sprints entsprechend der Milestones (wobei Milestone 3+4 im selben Sprint R7 erreicht werden müssen). Die Aufgaben von R3 wurden am 30.04. verteilt, für R5 liegt die Planung seit dem 07.05. vor. Das Sprint Planning für den letzten Sprint wird für den 21.05. geplant und dort werden die letzten Aufgaben verteilt, um die Arbeit gleichmäßig und nach den Stärken der Einzelnen je nach konkretem Vorgehen zuzuteilen. Die Anforderungen, Rückfragen und ToDos der einzelnen Aufgaben sind ebenso wie die Verantwortlichen in GitHub im Project @FraudDetectionProject vermerkt und werden von VH gepflegt. Start- und Enddaten sind ebenfalls dort, falls bereits möglich, hinterlegt - auch wenn diese in der Projektübersicht innerhalb des Sprints und (noch) nicht mit individuellem Start- und Enddatum angezeigt werden.
+
 ## Plan für die Ausarbeitung des Projekts (Workflow), Backlog 
 
 ### Projektplan und Workflow {.scrollable}

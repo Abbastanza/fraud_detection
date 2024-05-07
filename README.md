@@ -1,5 +1,5 @@
 # fraud_detection
-Software Engineering in R 
+Solution Engineering in R 
 
 Daniel Borsos, Valerie Högerle, Michaela Hubweber, Florian Ye
 
