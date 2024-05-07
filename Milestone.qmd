@@ -69,8 +69,6 @@ Der Backlog des Projekts befindet sich im zugehörigen [Repository](https://gith
 :::
 
 
-
-
 1. **Datenexploration und -vorbereitung**
    - Datenimport und -exploration
    - Behandlung von fehlenden oder doppelten Werten
