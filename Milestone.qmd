@@ -35,35 +35,37 @@ Quelle: https://www.teradata.com/insights/ai-and-machine-learning/fraud-detectio
 - Ausgeglichener F1-Score für betrügerische Transaktionen: Ziel ist ein F1-Score von über 85% für die Klasse der betrügerischen Transaktionen, was ein gutes Gleichgewicht zwischen Präzision und Recall darstellt, wobei der Schwerpunkt auf dem Recall liegt.
 - Schnelle Antwortzeiten der Shiny-Anwendung: Die Shiny-Anwendung sollte in der Lage sein, innerhalb weniger Sekunden Vorhersagen zu liefern, um effektive Echtzeitanwendungen zu ermöglichen.
 
-## Beschreibung der Datengrundlage (Refenzdatensatz) 
+### Beschreibung der Datengrundlage (Refenzdatensatz) {.scrollable}
 
 Die Grundlage des Kaggle-Datensatzes "Fraudulent Transactions Prediction" besteht aus Transaktionsdaten, die für die Erkennung von Betrug im Online-Zahlungsverkehr verwendet werden. Der Datensatz enthält verschiedene Attribute wie "step", "type", "amount", "oldbalanceOrg", "newbalanceOrig", "nameDest", "oldbalanceDest", "newbalanceDest", "isFraud" und "isFlaggedFraud". Allerdings sind die Balance-Daten ("oldbalanceOrg", "newbalanceOrig", "oldbalanceDest", "newbalanceDest") nicht immer vollständig, da viele dieser Werte 0 sind.
 
 Die Zielvariable "isFraud" ist außerdem unbalanciert, da 99.87% der Transaktionen nicht betrügerisch sind. Zudem scheint es keine signifikanten Korrelationen zwischen den Variablen zu geben, mit Ausnahme der Balance-Variablen, die viele Null-Werte enthalten und damit korrelieren .
 
-Die Attribute im Überblick:
+### Die Attribute im Überblick: {.scrollable}
 
-step: Zeiteinheit, wobei ein Schritt einer Stunde entspricht.
-type: Art der Online-Transaktion, z. B. "CASH_OUT", "PAYMENT", "CASH_IN", "TRANSFER" oder "DEBIT".
-amount: Betrag der Transaktion.
-nameOrig: ID des Ursprungs-Kontos.
-oldbalanceOrg: Anfangsguthaben des Ursprungs-Kontos.
-newbalanceOrig: Guthaben des Ursprungs-Kontos nach der Transaktion.
-nameDest: ID des Ziel-Kontos.
-oldbalanceDest: Anfangsguthaben des Ziel-Kontos.
-newbalanceDest: Guthaben des Ziel-Kontos nach der Transaktion.
-isFraud: Kennzeichnet, ob es sich um einen Betrugsfall handelt oder nicht.
-isFlaggedFraud: Kennzeichnet, ob die Transaktion als möglicher Betrugsfall markiert wurde.
+- step: Zeiteinheit, wobei ein Schritt einer Stunde entspricht.
+- type: Art der Online-Transaktion, z. B. "CASH_OUT", "PAYMENT", "CASH_IN", "TRANSFER" oder "DEBIT".
+- amount: Betrag der Transaktion.
+- nameOrig: ID des Ursprungs-Kontos.
+- oldbalanceOrg: Anfangsguthaben des Ursprungs-Kontos.
+- newbalanceOrig: Guthaben des Ursprungs-Kontos nach der Transaktion.
+- nameDest: ID des Ziel-Kontos.
+- oldbalanceDest: Anfangsguthaben des Ziel-Kontos.
+- newbalanceDest: Guthaben des Ziel-Kontos nach der Transaktion.
+- isFraud: Kennzeichnet, ob es sich um einen Betrugsfall handelt oder nicht.
+- isFlaggedFraud: Kennzeichnet, ob die Transaktion als möglicher Betrugsfall markiert wurde.
 
-## Projektorganisation und Aufgabenteilung 
+### Projektorganisation und Aufgabenteilung {.scrollable}
 Wir haben eine reine/autonome Projektorganisation, d.h. das Team arbeitet ausschließlich für die o.g. Ziele. Synergien könnten sich aus dem Python-Projekt mit identischer Gruppe ergeben, wobei die Organisation getrennt stattfindet. Da das Projekt ausreichend überschaubar ist, wird auf eine starke Struktur im Projektteam verzichte: z.B. gibt es keinen (ausschließlichen organisatorisch tätigen) Projektleiter, sondern alle vier Mitglieder sind hierarchisch gleichgestellt. Umso wichtiger werden Aufgabenteilung und Verantwortungen in Teilbereichen, die entsprechend der Stärken der Mitglieder verteilt werden.
+
 Die Erstellung und (hauptverantwortliche) Verwaltung in Github wurde von MH übernommen. Für die finalen Abgaben der (Zwischen-)Präsentationen ist VH verantwortlich. Die Aufgabenzuweisung und -organisation erfolgt über Github, kurzfristige Kommunikation und Absprachen erfolgen über eine zu Beginn des Projekts gegründete Chatgruppe. Ein Kick-Off-Meeting fand am 28.04.2024 statt, wo dieses Vorgehen besprochen wurde.
 
-Es ergeben sich durch Vorgaben der Lehrveranstaltung vier Milestones, die sich z.B. im Kanban widerspiegeln und detaillierter im nächsten Kapitel aufgezeigt werden.
-Milestone 1/4 (R3): Projektpräsentation am 07.05.2024 
-Milestone 2/4 (R5): Zwischenpräsentation am 21.05.2024
-Milestone 3/4: (R7) Projektabschlussbericht am 04.06.2024
-Milestone 4/4: (R7) Abschlusspräsentation 04.06.2024
+Es ergeben sich durch Vorgaben der Lehrveranstaltung vier Milestones, die sich z.B. im Kanban widerspiegeln und detaillierter im nächsten Kapitel aufgezeigt werden: 
+
+- Milestone 1/4 (R3): Projektpräsentation am 07.05.2024 
+- Milestone 2/4 (R5): Zwischenpräsentation am 21.05.2024
+- Milestone 3/4: (R7) Projektabschlussbericht am 04.06.2024
+- Milestone 4/4: (R7) Abschlusspräsentation 04.06.2024
 
 Das Projekt arbeitet agil, in zweiwöchigen Sprints entsprechend der Milestones (wobei Milestone 3+4 im selben Sprint R7 erreicht werden müssen). Die Aufgaben von R3 wurden am 30.04. verteilt, für R5 liegt die Planung seit dem 07.05. vor. Das Sprint Planning für den letzten Sprint wird für den 21.05. geplant und dort werden die letzten Aufgaben verteilt, um die Arbeit gleichmäßig und nach den Stärken der Einzelnen je nach konkretem Vorgehen zuzuteilen. Die Anforderungen, Rückfragen und ToDos der einzelnen Aufgaben sind ebenso wie die Verantwortlichen in GitHub im Project @FraudDetectionProject vermerkt und werden von VH gepflegt. Start- und Enddaten sind ebenfalls dort, falls bereits möglich, hinterlegt - auch wenn diese in der Projektübersicht innerhalb des Sprints und (noch) nicht mit individuellem Start- und Enddatum angezeigt werden.
 
