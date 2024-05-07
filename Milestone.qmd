@@ -65,7 +65,7 @@ Milestone 2/4 (R5): Zwischenpräsentation am 21.05.2024
 Milestone 3/4: (R7) Projektabschlussbericht am 04.06.2024
 Milestone 4/4: (R7) Abschlusspräsentation 04.06.2024
 
-Das Projekt arbeitet agil, in zweiwöchigen Sprints entsprechend der Milestones (wobei Milestone 3+4 im selben Sprint R7 erreicht werden müssen). Die Aufgaben von R3 wurden am 30.04. verteilt, für R5 liegt die Planung seit dem 07.05. vor. Das Sprint Planning für den letzten Sprint wird für den 21.05. geplant und dort werden die letzten Aufgaben verteilt, um die Arbeit gleichmäßig und nach den Stärken der Einzelnen je nach konkretem Vorgehen zuzuteilen. Die Anforderungen, Rückfragen und ToDos der einzelnen Aufgaben sind ebenso wie die Verantwortlichen in GitHub im Project @FraudDetectionProject vermerkt und werden von VH gepflegt.
+Das Projekt arbeitet agil, in zweiwöchigen Sprints entsprechend der Milestones (wobei Milestone 3+4 im selben Sprint R7 erreicht werden müssen). Die Aufgaben von R3 wurden am 30.04. verteilt, für R5 liegt die Planung seit dem 07.05. vor. Das Sprint Planning für den letzten Sprint wird für den 21.05. geplant und dort werden die letzten Aufgaben verteilt, um die Arbeit gleichmäßig und nach den Stärken der Einzelnen je nach konkretem Vorgehen zuzuteilen. Die Anforderungen, Rückfragen und ToDos der einzelnen Aufgaben sind ebenso wie die Verantwortlichen in GitHub im Project @FraudDetectionProject vermerkt und werden von VH gepflegt. Start- und Enddaten sind ebenfalls dort, falls bereits möglich, hinterlegt - auch wenn diese in der Projektübersicht innerhalb des Sprints und (noch) nicht mit individuellem Start- und Enddatum angezeigt werden.
 
 ## Plan für die Ausarbeitung des Projekts (Workflow), Backlog 
 
