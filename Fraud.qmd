@@ -1,0 +1,220 @@
+---
+title: "Fraud"
+format: html
+editor: visual
+---
+
+## Beschreibung der Datensatz
+
+```{r}
+library(data.table)
+library(ggplot2)
+library(caret)
+library(randomForest)
+library(dplyr)
+library(e1071)
+```
+
+```{r}
+df <- read.csv("Fraud.csv")
+head(df)
+```
+
+```{r}
+str(df)
+summary(df)
+sapply(df, function(x) sum(is.na(x)))
+```
+
+```{r}
+# Function to create pie charts using ggplot2
+plot_pie_chart <- function(df, column, title) {
+  # Ensure that 'df' is indeed a data frame
+  if (!is.data.frame(df)) {
+    stop("The input 'df' should be a data frame.")
+  }
+  
+  # Prepare the data for plotting using dplyr
+  data <- df %>%
+    dplyr::group_by(!!rlang::sym(column)) %>%
+    dplyr::summarise(Count = n(), .groups = 'drop') %>%
+    dplyr::mutate(Percentage = Count / sum(Count) * 100)
+  
+  # Generate the pie chart
+  ggplot(data, aes(x = "", y = Percentage, fill = factor(!!rlang::sym(column)))) +
+    geom_bar(stat = "identity", width = 1) +
+    coord_polar(theta = "y") +
+    labs(title = title, fill = column) +
+    theme_void() +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    geom_text(aes(label = sprintf("%.1f%%", Percentage)), position = position_stack(vjust = 0.5))
+}
+
+# Example usage: plot the pie chart for the 'type' column
+plot_pie_chart(df, "type", "% of Type")
+```
+
+```{r}
+table(df$isFlaggedFraud)
+```
+
+```{r}
+table(df$isFraud)
+```
+
+```{r}
+# Create a violin plot for the 'newbalanceDest' column
+ggplot(df, aes(x = "", y = newbalanceDest)) +
+  geom_violin(trim = FALSE) +
+  labs(y = "New Balance Destination", x = "") +
+  theme_minimal()
+```
+
+```{r}
+# Create a violin plot for the 'oldbalanceDest' column
+ggplot(df, aes(x = "", y = oldbalanceDest)) +
+  geom_violin(trim = FALSE) +
+  labs(y = "Old Balance Destination", x = "") +
+  theme_minimal()
+```
+
+```{r}
+# Set up the graphics layout to plot 2 plots in a 2x2 grid
+par(mfrow = c(2, 2), mar = c(5, 4, 4, 2) + 0.1)  # Set margins and layout
+
+# Create a boxplot for 'newbalanceDest'
+boxplot(df$newbalanceDest, main = "Boxplot of New Balance Destination", ylab = "New Balance Destination", col = "blue")
+
+# Move to the next panel for the next plot
+# Create a boxplot for 'oldbalanceDest'
+boxplot(df$oldbalanceDest, main = "Boxplot of Old Balance Destination", ylab = "Old Balance Destination", col = "red")
+
+# Reset the graphics layout
+par(mfrow = c(1, 1))
+```
+
+```{r}
+# Set up the graphics layout to plot 2 plots in a 2x2 grid
+par(mfrow = c(2, 2), mar = c(5, 4, 4, 2) + 0.1)  # Set margins and layout
+
+# Create a boxplot for 'oldbalanceOrg'
+boxplot(df$oldbalanceOrg, main = "Boxplot of Old Balance Org", ylab = "Old Balance Org", col = "blue")
+
+# Create a boxplot for 'newbalanceOrig'
+boxplot(df$newbalanceOrig, main = "Boxplot of New Balance Orig", ylab = "New Balance Orig", col = "red")
+
+# Reset the graphics layout
+par(mfrow = c(1, 1))
+```
+
+```{r}
+# Set up the graphics layout to plot 2 plots in a 2x2 grid
+par(mfrow = c(2, 2), mar = c(5, 4, 4, 2) + 0.1)  # Set margins and layout
+
+# Create a boxplot for 'step'
+boxplot(df$step, main = "Boxplot of Step", ylab = "Step", col = "blue")
+
+# Create a boxplot for 'amount'
+boxplot(df$amount, main = "Boxplot of Amount", ylab = "Amount", col = "red")
+
+# Reset the graphics layout
+par(mfrow = c(1, 1))
+
+```
+
+```{r}
+table(df[df$isFlaggedFraud == 1, ]$isFraud)
+```
+
+```{r}
+# Drop columns which are not relevant
+df <- df[, !(names(df) %in% c('nameOrig', 'nameDest', 'isFlaggedFraud'))]
+```
+
+```{r}
+df <- data.frame(model.matrix(~ . - 1, data=df))
+head(df)
+```
+
+```{r}
+# Set seed for reproducibility
+set.seed(42)
+
+# Create index for stratified random split
+splitIndex <- createDataPartition(df$isFraud, p = 0.7, list = FALSE, times = 1)
+
+# Create training and test datasets
+xtrain <- df[splitIndex, -which(names(df) == "isFraud")]
+xtest <- df[-splitIndex, -which(names(df) == "isFraud")]
+ytrain <- df[splitIndex, "isFraud", drop = FALSE]
+ytest <- df[-splitIndex, "isFraud", drop = FALSE]
+
+# Print the dimensions of the train and test sets
+cat("xtrain shape:", dim(xtrain), "\nxtest shape:", dim(xtest),
+    "\nytrain shape:", dim(ytrain), "\nytest shape:", dim(ytest), "\n")
+```
+
+```{r}
+# Set seed for reproducibility
+set.seed(42)
+
+# Since ytrain is a factor and we're stratifying by it, ensure it's a factor
+ytrain <- factor(ytrain)
+
+# Create index for a stratified random split
+splitIndex <- createDataPartition(ytrain, p = 0.7, list = FALSE, times = 1)
+
+# Create sub-training and validation datasets
+xtrain_new <- xtrain[splitIndex, ]
+xval <- xtrain[-splitIndex, ]
+ytrain_new <- ytrain[splitIndex]
+yval <- ytrain[-splitIndex]
+
+# Print the dimensions of the sub-training and validation sets
+cat("xtrain shape:", dim(xtrain_new), "\nxval shape:", dim(xval),
+    "\nytrain shape:", length(ytrain_new), "\nyval shape:", length(yval), "\n")
+```
+
+```{r}
+metrics <- function(y_test, y_pred) {
+  # Accuracy
+  acc <- sum(y_pred == y_test) / length(y_test)
+  cat("Accuracy:", acc, "\n")
+
+  # Using caret to calculate confusion matrix and by extension precision, recall, and F1 score
+  confusion <- confusionMatrix(as.factor(y_pred), as.factor(y_test))
+  
+  # Extracting metrics from the confusion matrix
+  precision <- confusion$byClass['Positive Pred Value']
+  recall <- confusion$byClass['Sensitivity']
+  f_score <- (2 * precision * recall) / (precision + recall)  # Calculating F1 score
+
+  cat("Precision:", precision, "\n")
+  cat("Recall:", recall, "\n")
+  cat("F_Score:", f_score, "\n")
+  
+  # Classification report (summary)
+  cat("Classification Report\n")
+  print(confusion)
+  
+  # Confusion Matrix
+  cat("Confusion Matrix\n")
+  print(confusion$table)
+}
+```
+
+```{r}
+CM <- function(cm) {
+  # Transform the confusion matrix into a data frame for ggplot
+  cm_df <- as.data.frame(as.table(cm))
+  names(cm_df) <- c("Truth", "Predicted", "Frequency")
+  
+  # Draw a heatmap using ggplot2
+  ggplot(cm_df, aes(x = Predicted, y = Truth, fill = Frequency)) +
+    geom_tile(color = "white") + # Add white lines between tiles
+    geom_text(aes(label = Frequency), vjust = 1.5, color = "black") + # Add text labels
+    scale_fill_gradient(low = "blue", high = "red") + # Color gradient from blue to red
+    labs(x = "Predicted", y = "Truth") + # Label axes
+    theme_minimal() # Use a minimal theme
+}
+```
