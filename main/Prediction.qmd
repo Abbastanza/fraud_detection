@@ -22,6 +22,7 @@ library(caret)
 library(pROC)
 library(gridExtra)
 library(rpart)
+library(rpart.plot)
 
 options(scipen=999)
 ```
@@ -29,7 +30,11 @@ options(scipen=999)
 # Milestone 3: Modellierung
 ```{r}
 # Read data
-data <- read.csv("/Users/florianye/Google Drive/My Drive/Files/FH Technikum/1 - Aktuell/Solution Engineering - R/main/Fraud_processed.csv")
+path_flo = "/Users/florianye/Google Drive/My Drive/Files/FH Technikum/1 - Aktuell/Solution Engineering - R/main/Fraud_processed.csv"
+
+path = "../data/Fraud_processed.csv"
+
+data <- read.csv(path)
 # Show first rows of data
 head(data)
 ```
@@ -72,6 +77,7 @@ fullTrainData$type_fraud <- NULL
 trainData <- fullTrainData[trainSplitIndex, ]
 valData <- fullTrainData[-trainSplitIndex, ]
 ```
+
 ```{r}
 # Check the distribution of the target variable in the training and test data
 cat("Verteilung von 'isFraud' im Trainingsdatensatz:")
@@ -109,6 +115,7 @@ evaluate_model_performance <- function(predictions_factor, actual_factor) {
   # Berechnung der Konfusionsmatrix
   confusionMatrix <- confusionMatrix(predictions_factor, actual_factor, positive="Yes")
   
+  
   # Ausgabe der Konfusionsmatrix
   print("Konfusionsmatrix:")
   print(confusionMatrix$table)
@@ -144,9 +151,44 @@ evaluate_model_performance(baseline_predictions_factor, actual_factor)
 
 ### Decision Tree
 ```{r}
+case_weights <- rep(1, nrow(trainData)) 
+case_weights[trainData$isFraud == "Yes"] <- 100 # mehr Gewicht für Fraud
+
 # Train a decision tree model
-decision_tree_model <- rpart(isFraud ~ ., data = trainData, method = "class")
+decision_tree_model <- rpart(isFraud ~ ., data = trainData, method = "class", weights = case_weights)
 
 # Ausgabe des trainierten Modells
 print(decision_tree_model)
+
+# Visualisierung des trainierten Modells
+rpart.plot(decision_tree_model, main = "Decision Tree Model")
 ```
+
+
+```{r}
+# Predictions on the test data
+decision_tree_predictions <- predict(decision_tree_model, testData, type = "class")
+
+# Convert the predictions to a factor
+decision_tree_predictions_factor <- factor(decision_tree_predictions, levels = c("No", "Yes"))
+
+# Convert the actual values to a factor
+actual_factor <- factor(testData$isFraud, levels = c("No", "Yes"))
+
+# Evaluate the performance of the decision tree model
+evaluate_model_performance(decision_tree_predictions_factor, actual_factor)
+
+```
+```{r}
+# inspect false negatives
+false_negatives <- testData[actual_factor == "Yes" & decision_tree_predictions_factor == "No", ]
+false_negatives
+```
+
+
+
+
+
+
+
+
