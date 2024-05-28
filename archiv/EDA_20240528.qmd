@@ -413,11 +413,5 @@ data %>%
 ```
 Es gibt keine Transaktion zwischen dem selben Konto.
 
-```{r}
-# Remove nameOrig and nameDest
-data <- select(data, -nameOrig, -nameDest)
-# Save Data as csv
-write.csv(data, "Fraud_processed.csv", row.names = FALSE)
-```
 
 

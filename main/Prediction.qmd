@@ -1,0 +1,152 @@
+---
+title: "Vorhersage (Klassifikation) betrügerischer Kontotransaktionen"
+subtitle: "Solution Engineering in R"
+author: "Daniel Borsos, Valerie Högerle, Michaela Hubweber, Florian Ye"
+date: today
+embed-resources: true
+format:
+  revealjs:
+    scrollable: true
+    smaller: true
+    theme: solarized ##https://quarto.org/docs/presentations/revealjs/themes.html
+    slide-level: 2
+fig-align: center
+execute: 
+  warning: false
+---
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(caret)
+library(pROC)
+library(gridExtra)
+library(rpart)
+
+options(scipen=999)
+```
+
+# Milestone 3: Modellierung
+```{r}
+# Read data
+data <- read.csv("/Users/florianye/Google Drive/My Drive/Files/FH Technikum/1 - Aktuell/Solution Engineering - R/main/Fraud_processed.csv")
+# Show first rows of data
+head(data)
+```
+
+## Train-Test Split {.scrollable}
+
+```{r}
+# Change the type of the isFraud and flagFraud column to a factor
+data$isFraud <- as.factor(data$isFraud)
+data$flagFraud <- as.factor(data$flagFraud)
+```
+
+
+```{r}
+### Split data into training and test data ###
+# Create a column for the interaction between type and isFraud
+data$type_fraud <- interaction(data$type, data$isFraud)
+
+# Stratified allocation based on the combined column
+set.seed(10)
+splitIndex <- createDataPartition(data$type_fraud, p = 0.75, list = FALSE, times = 1)
+
+# Remove the combined column
+data$type_fraud <- NULL
+# Split the data into training and test data
+fullTrainData <- data[splitIndex, ]
+testData <- data[-splitIndex, ]
+
+
+### Split the training data into training and validation data ####
+fullTrainData$type_fraud <- interaction(fullTrainData$type, fullTrainData$isFraud)
+
+# Stratified allocation based on the isFraud column
+set.seed(10)
+trainSplitIndex <- createDataPartition(fullTrainData$type_fraud, p = 0.75, list = FALSE, times = 1)
+
+# Remove the combined column
+fullTrainData$type_fraud <- NULL
+# Split the training data into training and validation data
+trainData <- fullTrainData[trainSplitIndex, ]
+valData <- fullTrainData[-trainSplitIndex, ]
+```
+```{r}
+# Check the distribution of the target variable in the training and test data
+cat("Verteilung von 'isFraud' im Trainingsdatensatz:")
+round(prop.table(table(trainData$isFraud)), 4)
+cat("\nVerteilung von 'isFraud' im Testdatensatz:")
+round(prop.table(table(testData$isFraud)), 4)
+
+# Check the distribution of the type and target variable in the training and test data
+cat("\nVerteilung der Variablen 'type' und 'isFraud' im Trainingsdatensatz:")
+round(prop.table(table(trainData$type, trainData$isFraud)), 5)
+cat("\nVerteilung der Variablen 'type' und 'isFraud' im Testdatensatz:")
+round(prop.table(table(testData$type, testData$isFraud)), 5)
+
+```
+
+```{r}
+# Save the training and test data as csv
+#write.csv(trainData, "Fraud_train.csv", row.names = FALSE)
+#write.csv(testData, "Fraud_test.csv", row.names = FALSE)
+```
+
+## Baseline Modell {.scrollable}
+
+```{r}
+# Definition des Baseline-Modells
+baseline_model <- function(data) {
+  rep("Yes", nrow(data))
+}
+```
+
+```{r}
+# Definiere eine Funktion, um die Metriken für das Baseline-Modell zu berechnen und auszugeben
+evaluate_model_performance <- function(predictions_factor, actual_factor) {
+  
+  # Berechnung der Konfusionsmatrix
+  confusionMatrix <- confusionMatrix(predictions_factor, actual_factor, positive="Yes")
+  
+  # Ausgabe der Konfusionsmatrix
+  print("Konfusionsmatrix:")
+  print(confusionMatrix$table)
+  
+  # Berechnung von Recall und Precision
+  recall <- confusionMatrix$byClass['Sensitivity']
+  precision <- confusionMatrix$byClass['Precision']
+  
+  # Berechnung des F1-Score
+  f1_score <- 2 * (precision * recall) / (precision + recall)
+  
+  # Vorbereitung der Daten für die AUC-Berechnung
+  prediction_probabilities <- ifelse(predictions_factor == "Yes", 1, 0)
+  roc_curve <- roc(actual_factor, prediction_probabilities)
+  auc_score <- auc(roc_curve)
+  
+  # Ausgabe der Metriken
+  print(paste("Recall:", recall))
+  print(paste("F1-Score:", f1_score))
+  print(paste("AUC Score:", auc_score))
+}
+```
+
+```{r}
+baseline_predictions_factor <- factor(baseline_model(valData), levels = c("No", "Yes"))
+actual_factor <- factor(valData$isFraud, levels = c("No", "Yes"))
+
+# Aufruf der Funktion mit den umgewandelten Daten
+evaluate_model_performance(baseline_predictions_factor, actual_factor)
+```
+
+## Modell Training {.scrollable}
+
+### Decision Tree
+```{r}
+# Train a decision tree model
+decision_tree_model <- rpart(isFraud ~ ., data = trainData, method = "class")
+
+# Ausgabe des trainierten Modells
+print(decision_tree_model)
+```
