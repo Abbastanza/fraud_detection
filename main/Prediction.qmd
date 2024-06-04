@@ -32,17 +32,26 @@ options(scipen=999)
 ```{r}
 # Read data
 #path = "../data/Fraud_processed.csv"
-data <- read.csv("/Users/florianye/Google Drive/My Drive/Files/FH Technikum/1 - Aktuell/Solution Engineering - R/main/Fraud_processed.csv")
+data.full <- read.csv("/Users/florianye/Google Drive/My Drive/Files/FH Technikum/1 - Aktuell/Solution Engineering - R/main/Fraud_processed.csv")
 # Show first rows of data
-head(data)
+head(data.full)
 ```
+
+```{r}
+# Select columns for modeling
+model_vars <- c("type", "amount", "oldbalanceOrg", "newbalanceOrig", "change.balanceOrg", "nameDestType", "flagFraud", "isFraud")
+data <- data.full[model_vars]
+```
+
 
 ## Train-Test Split {.scrollable}
 
 ```{r}
-# Change the type of the isFraud and flagFraud column to a factor
+# Change categorical to factor
 data$isFraud <- as.factor(data$isFraud)
-data$flagFraud <- as.factor(data$flagFraud)
+#data$flagFraud <- as.factor(data$flagFraud)
+data$type <- as.factor(data$type)
+#data$nameDestType <- as.factor(data$nameDestType)
 ```
 
 
@@ -75,6 +84,7 @@ fullTrainData$type_fraud <- NULL
 trainData <- fullTrainData[trainSplitIndex, ]
 valData <- fullTrainData[-trainSplitIndex, ]
 ```
+
 ```{r}
 # Check the distribution of the target variable in the training and test data
 cat("Verteilung von 'isFraud' im Trainingsdatensatz:")
@@ -160,7 +170,7 @@ get_model_metrics(baseline_predictions_prob, actual_factor)
 ```
 
 ## Modell Training {.scrollable}
-
+Die Modelle werden hier vorerst mit einem Teil der Trainingsdaten trainiert und mit dem Validierungsdatensatz evaluiert.
 ### Decision Tree
 ```{r}
 # Festlegung von Gewichten für die Fälle
@@ -183,9 +193,10 @@ evaluate_model_performance(decision_tree_model, valData)
 # Training des logistischen Regressionsmodells
 logisticModel <- glm(isFraud ~ ., family = binomial(link = "logit"), data = trainData)
 ```
+
 ```{r}
 logistic_predictions_prob <- predict(logisticModel, newdata = valData, type = "response")
-get_model_metrics(logistic_predictions_prob, actual_factor, threshold = 0.3)
+get_model_metrics(logistic_predictions_prob, actual_factor, threshold = 0.5)
 ```
 
 ### Naive Bayes
@@ -197,5 +208,39 @@ naiveBayesModel <- naive_bayes(isFraud ~ ., data = trainData, laplace = 1)
 ```{r}
 evaluate_model_performance(naiveBayesModel, valData)
 ```
+
+Alle 3 Modelle zeigen bessere Ergebnisse als das Baseline-Modell. Das Decision Tree und Logistic Regression Modell haben sehr gute und ähnliche Ergebnisse, während das Naive Bayes Modell etwas schlechter abschneidet. Im nächsten Schritt werden die Modelle mit dem gesamten Trainingsdatensatz trainiert und mit dem Testdatensatz evaluiert.
+
+## Modell Evaluation {.scrollable}
+```{r}
+# Decision Tree
+case_weights_full <- rep(1, nrow(fullTrainData)) # Festlegung von Gewichten für die Fälle
+case_weights_full[fullTrainData$isFraud == "Yes"] <- 100  # mehr Gewicht für Betrugsfälle
+decision_tree_model_full <- rpart(isFraud ~ ., data = fullTrainData, method = "class", weights = case_weights_full)
+evaluate_model_performance(decision_tree_model_full, testData)
+```
+
+```{r}
+# Logistic Regression
+actual_factor_test <- factor(testData$isFraud, levels = c("No", "Yes"))
+
+logisticModel_full <- glm(isFraud ~ ., family = binomial(link = "logit"), data = fullTrainData)
+logistic_predictions_prob_full <- predict(logisticModel_full, newdata = testData, type = "response")
+get_model_metrics(logistic_predictions_prob_full, actual_factor_test, threshold = 0.5)
+```
+
+```{r}
+# Naive Bayes
+naiveBayesModel_full <- naive_bayes(isFraud ~ ., data = fullTrainData, laplace = 1)
+evaluate_model_performance(naiveBayesModel_full, testData)
+```
+
+Wie auch beim Trainings und Validierungsdatensatz, zeigen das Decision Tree und Logistic Regression Modell die besten Ergebnisse. Das Naive Bayes Modell schneidet wieder etwas schlechter ab. Die Modelle wurden mit dem gesamten Trainingsdatensatz trainiert und mit dem Testdatensatz evaluiert. Da sich die Ergebnisse der Modelle nicht wesentlich unterscheiden, wird das Decision Tree Modell für die Vorhersage der Testdaten verwendet.
+
+```{r}
+# Speichern des Decision Tree Modells
+saveRDS(decision_tree_model_full, "decision_tree_model.rds")
+```
+
 
 
