@@ -25,6 +25,7 @@ library(rpart.plot)
 library(e1071)
 library(class)
 library(randomForest)
+library(ranger)
 
 
 options(scipen=999)
@@ -481,22 +482,45 @@ print(paste("Best accuracy:", round(best_accuracy, 2)))
 # Plot the accuracies
 plot(k_values, accuracies, type = "b", xlab = "Number of Neighbors (k)", ylab = "Accuracy", main = "k-NN Accuracy for Different k Values")
 
+```
+
+```{r}
+# RF modell data
+filtered_df <- df %>%
+  filter(type == "CASH_OUT" | type == "TRANSFER")
 
 ```
 
 ```{r}
+# Stratified allocation based on the combined column
+splitIndex2 <- createDataPartition(filtered_df$isFraud, p = 0.75, list = FALSE, times = 1)
+
+trainData2 <- df[splitIndex2, ]
+testData2 <- df[-splitIndex2, ]
+```
+
+```{r}
+print(filtered_df)
+```
+
+```{r}
 # Train the model
-rf_model <- randomForest(isFraud ~ ., data = trainData, ntree = 500, mtry = 3, importance = TRUE)
+rf_model <- ranger(isFraud ~ ., data = trainData2, ntree = 300, importance = 'impurity')
 
 # Summarize the model
 print(summary(rf_model))
 
 # Predict on the test set
-predictions <- predict(rf_model, testData)
+predictions <- predict(rf_model, testData2)
+
+```
+
+```{r}
+predictions_vector <- predictions$predictions  # Extract predictions
 
 # Assess the model's performance
-actual <- testData$isFraud
-confusion_matrix <- table(Predicted = predictions, Actual = actual)
+actual <- testData2$isFraud
+confusion_matrix <- table(Predicted = predictions_vector, Actual = actual)
 
 # Print confusion matrix
 print(confusion_matrix)
@@ -509,6 +533,10 @@ print(paste("Accuracy:", accuracy))
 importance <- importance(rf_model)
 print(importance)
 
+```
+
+```{r}
+
 # Plot variable importance
-varImpPlot(rf_model)
+plot(importance, type = 'o', col = 'blue', main = "Variable Importance")
 ```
