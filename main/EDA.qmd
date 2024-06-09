@@ -441,7 +441,7 @@ filtered_df <- df %>%
 
 # Ausgewählte Modelle {.scrollable}
 
-Wir haben schon bei den EDA festgestellt dass die bei uns feature engineerte variable flagFraud schon ganz gut Fraud Fälle finden kann. Deswegen haben wir unsere modelle dazu verwendet um die ergebnisse noch zu verbessern. Wir haben dazu drei modelle gewählt die mit so unbalancierte Daten umgehen können: Decision Tree, SVM, Random Forest. Um den modellen eficienter trenieren zu können haben wir nur an den daten treniert wo den transaktionstyp cash_out oder transfer war.
+Wir haben bereits in der explorativen Datenanalyse (EDA) festgestellt, dass die von uns entwickelte Variable flagFraud bereits sehr gut in der Lage ist, Betrugsfälle zu identifizieren. Deshalb haben wir unsere Modelle genutzt, um die Ergebnisse weiter zu verbessern. Wir haben dazu drei Modelle ausgewählt, die gut mit unbalancierten Daten umgehen können: Decision Tree, SVM und Random Forest. Um das Training der Modelle effizienter zu gestalten, haben wir sie ausschließlich mit Daten trainiert, bei denen der Transaktionstyp entweder Cash-Out oder Transfer war.
 
 ### Decision Tree
 
@@ -472,6 +472,7 @@ predictions <- predict(model, testData, type = "class")
 # Evaluate the model using the caret package
 confusionMatrix(predictions, testData$isFraud)
 ```
+### SVM
 
 ```{r}
 # Train the SVM model
@@ -484,6 +485,7 @@ predictions <- predict(svm_model, testData)
 conf_matrix <- confusionMatrix(predictions, testData$isFraud)
 print(conf_matrix)
 ```
+### Random Forest
 
 ```{r}
 # Train the model
