@@ -20,30 +20,36 @@ library(dplyr)
 library(ggplot2)
 library(caret)
 library(gridExtra)
+library(rpart)
+library(rpart.plot)
+library(e1071)
+library(class)
+library(randomForest)
+library(ranger)
 
 options(scipen=999)
 ```
+
 # Recap: Milestone 1 {.scrollable}
 
 **Ziel** (Zusammenfassung)
 
-- Betrügerische von legitimen Transaktionen unterscheiden / Muster oder Anomalien erkennen
-- Modell für u.a. Vorhersage in shiny-Anwendung umsetzen
+-   Betrügerische von legitimen Transaktionen unterscheiden / Muster oder Anomalien erkennen
+-   Modell für u.a. Vorhersage in shiny-Anwendung umsetzen
 
 **Daten**
 
-- klar unbalancierte Zielvariable "isFraud": 99,87% ist kein Betrug
-- sonstige Varibalen meist ohne Korrelation, z.B. Start-/Zielkonto, Betrag und Art der Transaktion
-- Einzig Start- und Endguthaben der jeweiligen Konten korrelieren miteinander, auch aufgrund vieler Nullwerte
-
-
+-   klar unbalancierte Zielvariable "isFraud": 99,87% ist kein Betrug
+-   sonstige Varibalen meist ohne Korrelation, z.B. Start-/Zielkonto, Betrag und Art der Transaktion
+-   Einzig Start- und Endguthaben der jeweiligen Konten korrelieren miteinander, auch aufgrund vieler Nullwerte
 
 # Milestone 2: Explorative Datenanalyse
 
 ## Erste Einblicke in die Daten {.scrollable}
+
 ```{r}
 # Read data
-data.full <- read.csv("/Users/florianye/Google Drive/My Drive/Files/FH Technikum/1 - Aktuell/Solution Engineering - R/Fraud.csv")
+data.full <- read.csv("Fraud.csv")
 # Show first rows of data
 head(data.full)
 ```
@@ -71,15 +77,17 @@ data.full$flagFraud <- factor(data.full$flagFraud, levels = c(0, 1), labels = c(
 
 Im Verlauf der EDA lässt sich erkennen, dass beim Fraud die Veränderung der Kontostände eine wichtige Rolle spielen. Daher werden die Variablen "change.balanceOrg", "increase.balanceDest" und "flagFraud" erstellt.
 
-- "change.balanceOrg": Differenz zwischen dem alten und neuen Kontostand des Absenders
-- "increase.balanceDest": Differenz zwischen dem neuen und alten Kontostand des Empfängers
-- "flagFraud": Wenn der Empfänger einen Kontostand von 0 hat und der Absender den gesamten Betrag überweist, wird die Variable auf 1 gesetzt.
+-   "change.balanceOrg": Differenz zwischen dem alten und neuen Kontostand des Absenders
+-   "increase.balanceDest": Differenz zwischen dem neuen und alten Kontostand des Empfängers
+-   "flagFraud": Wenn der Empfänger einen Kontostand von 0 hat und der Absender den gesamten Betrag überweist, wird die Variable auf 1 gesetzt.
 
 ```{r}
 # Show data structure
 str(data.full)
 ```
+
 ### Fehlende Werte
+
 ```{r}
 # Check for missing values
 num_missing_values <- sum(is.na(data.full))
@@ -87,6 +95,7 @@ print(paste("Anzahl fehlender Werte:", num_missing_values))
 ```
 
 ### Aufverteilung der abhängigen Variable
+
 ```{r}
 # Show isFraud distribution in percentage
 print("isFraud Verteilung in Prozent")
@@ -99,8 +108,7 @@ print("Selbst erstellte Variable flagFraud Verteilung in Prozent")
 round(table(data.full$flagFraud)/nrow(data.full)*100, 2)
 ```
 
-Bei isFlaggedFraud ist die Anzahl der betrügerischen Transaktionen mit 16 (von > 6 Mio) sehr gering und wird daher aus dem Datensatz entfernt. 
-Bei dem neu erstellten flagFraud ist zu sehen, dass sie eine ähnliche Verteilung wie isFraud aufweist.
+Bei isFlaggedFraud ist die Anzahl der betrügerischen Transaktionen mit 16 (von \> 6 Mio) sehr gering und wird daher aus dem Datensatz entfernt. Bei dem neu erstellten flagFraud ist zu sehen, dass sie eine ähnliche Verteilung wie isFraud aufweist.
 
 ```{r}
 # Remove isFlaggedFraud
@@ -108,7 +116,9 @@ data <- select(data.full, -isFlaggedFraud)
 ```
 
 ## Univariate Analyse {.scrollable}
+
 Numerische Variablen:
+
 ```{r out.width = "0.9\\linewidth", fig.width = 8, fig.height = 8, fig.align = "center"}
 # Plot histogram for all numeric variables
 numeric_columns <- colnames(select_if(data, is.numeric)) #select numeric column names
@@ -141,30 +151,29 @@ par(mfrow=c(1,1))
 
 **Steps**
 
-- 1 Step entspricht einer Stunde (30 Tage Simulation)
-- ungleichmäßige Simulation ohne erkennbares Muster (z.B. Wochenenden)
-- nur 2 Steps ohne Fraud, sonst durchschnittlich 11 Betrugsfälle pro Stunde (max. 40)
+-   1 Step entspricht einer Stunde (30 Tage Simulation)
+-   ungleichmäßige Simulation ohne erkennbares Muster (z.B. Wochenenden)
+-   nur 2 Steps ohne Fraud, sonst durchschnittlich 11 Betrugsfälle pro Stunde (max. 40)
 
 **amount**
 
-- Die Beträge der Transaktionen liegen v.a. zwischen 1000,00 und 1.000.000,00 (Währung nicht angegeben)
-- der Median liegt bei 74.872,00, Ausreißer gehen bis 92 Mio.
+-   Die Beträge der Transaktionen liegen v.a. zwischen 1000,00 und 1.000.000,00 (Währung nicht angegeben)
+-   der Median liegt bei 74.872,00, Ausreißer gehen bis 92 Mio.
 
 **Balance**
 
-Es liegen sehr viele Nullwerte vor: 
+Es liegen sehr viele Nullwerte vor:
 
-- 33% bei den Absendern vor der Transaktion, 57% nach der Transaktion
-- 42% der Empfänger vor der Transaktion, 38% nach der Transaktion
+-   33% bei den Absendern vor der Transaktion, 57% nach der Transaktion
+-   42% der Empfänger vor der Transaktion, 38% nach der Transaktion
 
 Kontostände außerhalb der Nullwerte:
 
-- die Absender hatten (wenn nicht 0) meist zwischen 1000,00 bis 10.000,00 auf dem Konto, häufige Werte gehen bis 10 Mio.
-- die Empfänger hatten (wenn nicht 0) meist zwischen 100.000 und 10 Mio (vor der Transaktion) auf dem Konto
-
-
+-   die Absender hatten (wenn nicht 0) meist zwischen 1000,00 bis 10.000,00 auf dem Konto, häufige Werte gehen bis 10 Mio.
+-   die Empfänger hatten (wenn nicht 0) meist zwischen 100.000 und 10 Mio (vor der Transaktion) auf dem Konto
 
 Kategoriale Variablen:
+
 ```{r out.width = "0.9\\linewidth", fig.width = 8, fig.height = 8, fig.align = "center"}
 # Plot barplot for all categorical variables
 categorical_columns <- colnames(select_if(data, is.factor)) #select categorical column names
@@ -210,7 +219,9 @@ geom_bar(stat = "identity") +
 ```
 
 ## Bivariate Analyse {.scrollable}
+
 Korrelationsmatrix:
+
 ```{r out.width = "0.9\\linewidth", fig.width = 14, fig.height = 12, fig.align = "center"}
 # Plot correlation matrix
 correlation_matrix <- cor(data[numeric_columns])
@@ -227,9 +238,7 @@ corrplot::corrplot.mixed(correlation_matrix, order = 'AOE')
 #par(mfrow=c(1,1))
 ```
 
-Eine hohe Korrelation liegt als je zwischen altem und neuen Kontostand vor (sowohl beim Sender als auch beim Empfänger).
-Ein gewisser positiver Zusammenhang könnte zwischen dem Betrag und dem Empfängerkonto liegen.
-Der negative Zusammenhang zwischen change.balanceOrg und dem neuen Kontostand des Senders ist nachvollziehbar (je mehr Geld vom Konto weggeht, desto kleiner ist der Kontostand dort anschließend.)
+Eine hohe Korrelation liegt als je zwischen altem und neuen Kontostand vor (sowohl beim Sender als auch beim Empfänger). Ein gewisser positiver Zusammenhang könnte zwischen dem Betrag und dem Empfängerkonto liegen. Der negative Zusammenhang zwischen change.balanceOrg und dem neuen Kontostand des Senders ist nachvollziehbar (je mehr Geld vom Konto weggeht, desto kleiner ist der Kontostand dort anschließend.)
 
 Density Plots im Vergleich nach Fraud-Status:
 
@@ -264,9 +273,9 @@ create_density_plots <- function(data, numeric_columns, main_title) {
 create_density_plots(data, numeric_columns, "Density Plots nach isFraud")
 ```
 
-- Betrügerische Transaktionen haben tendenziell höhere Beträge.
-- oldbalanceOrg liegt bei notFraud bei einem Großteil bei 0. Bei Fraud ist dies nicht der Fall
-- change.balanceOrg: der abgegangene Betrag ist bei Fraud klar höher.
+-   Betrügerische Transaktionen haben tendenziell höhere Beträge.
+-   oldbalanceOrg liegt bei notFraud bei einem Großteil bei 0. Bei Fraud ist dies nicht der Fall
+-   change.balanceOrg: der abgegangene Betrag ist bei Fraud klar höher.
 
 Barplot nach Typ und Fraud-Status:
 
@@ -306,23 +315,27 @@ ggplot(data, aes(x = type, fill = isFraud)) +
 Zu erkennen: Es sind nur betrügerische Transaktionen bei den Typen "CASH_OUT" und "TRANSFER" vorhanden. Diese werden näher betrachtet.
 
 CASH_OUT Transaktionen:
+
 ```{r out.width = "0.9\\linewidth", fig.width = 10, fig.height = 12, fig.align = "center"}
 create_density_plots(data %>% filter(type == "CASH_OUT"), numeric_columns, "Density Plots für CASH_OUT Transaktionen")
 ```
 
-- oldbalanceOrig: bei notFraud liegt der Betrag größtenteils bei 0, bei Fraud ist der Kontostand so ziemlich nie bei 0. Im Durchschnitt auch eindeutig höher.
-- newbalanceOrig: bei Fraud liegt der Betrag dann größtenteils bei 0 (Konto geplündert).
-- change.balanceOrg: nochmal zu sehen, dass der abgegangene Betrag bei Fraud klar höher ist.
+-   oldbalanceOrig: bei notFraud liegt der Betrag größtenteils bei 0, bei Fraud ist der Kontostand so ziemlich nie bei 0. Im Durchschnitt auch eindeutig höher.
+-   newbalanceOrig: bei Fraud liegt der Betrag dann größtenteils bei 0 (Konto geplündert).
+-   change.balanceOrg: nochmal zu sehen, dass der abgegangene Betrag bei Fraud klar höher ist.
 
 TRANSFER Transaktionen
+
 ```{r out.width = "0.9\\linewidth", fig.width = 10, fig.height = 10, fig.align = "center"}
 create_density_plots(data %>% filter(type == "TRANSFER"), numeric_columns, "Density Plots für TRANSFER Transaktionen")
 ```
-- oldbalanceOrig: bei notFraud liegt der Betrag größtenteils bei 0, bei Fraud ist der Kontostand so ziemlich nie bei 0. Im Durchschnitt auch eindeutig höher.
-- oldbalanceDest & newbalanceDest: das Seltsame ist, dass Fraud ziemlich genau bei 0, aber newbalanceDest ebenfalls bei 0 liegt.
-- change.balanceOrg: nochmal zu sehen, dass der abgegangene Betrag bei Fraud klar höher ist.
+
+-   oldbalanceOrig: bei notFraud liegt der Betrag größtenteils bei 0, bei Fraud ist der Kontostand so ziemlich nie bei 0. Im Durchschnitt auch eindeutig höher.
+-   oldbalanceDest & newbalanceDest: das Seltsame ist, dass Fraud ziemlich genau bei 0, aber newbalanceDest ebenfalls bei 0 liegt.
+-   change.balanceOrg: nochmal zu sehen, dass der abgegangene Betrag bei Fraud klar höher ist.
 
 Confusion Matrix für flagFraud:
+
 ```{r}
 # Create confusion matrix for flagFraud
 confusion_matrix <- table(data$flagFraud, data$isFraud)
@@ -338,7 +351,7 @@ ggplot(cm_df, aes(x = flagFraud, y = isFraud, fill = Frequency)) +
   theme_minimal()
 ```
 
-_Überprüfung der Konten_
+*Überprüfung der Konten*
 
 ```{r}
 # Filter df to isFraud == "Yes"
@@ -356,8 +369,8 @@ data.fraud.yes %>%
   count(n) %>%
   rename(nameOrig_count = n, Frequency = nn)
 ```
-Die allermeisten Absender (99,7%) kommen ein einziges Mal vor, der Rest taucht maximal 3x als Absender auf.
 
+Die allermeisten Absender (99,7%) kommen ein einziges Mal vor, der Rest taucht maximal 3x als Absender auf.
 
 Überprüfen, ob das Konto, auf das die Transaktion erfolgt, mehrere betrügerische Transaktionen erhält.
 
@@ -368,9 +381,8 @@ data.fraud.yes %>%
   count(n) %>%
   rename(nameDest_count = n, Frequency = nn)
 ```
-Pro Zielkonto gibt es also maximal 2 Betrugsfälle.
-Auffallend ist in dem Datensatz jedoch, dass Zielkonten wesentlich häufiger vorkommen: 35% sind nur einmalig Ziel von Transaktionen, einzelne Konten tauchen über 100x als Ziel auf.
-Dennoch wird kein "klassisches Betrugskonto" gefunden.
+
+Pro Zielkonto gibt es also maximal 2 Betrugsfälle. Auffallend ist in dem Datensatz jedoch, dass Zielkonten wesentlich häufiger vorkommen: 35% sind nur einmalig Ziel von Transaktionen, einzelne Konten tauchen über 100x als Ziel auf. Dennoch wird kein "klassisches Betrugskonto" gefunden.
 
 Überprüfen, wie viele Konten, von dem die Transaktion ausgehen, auch Transaktionen ohne Betrug durchführt haben.
 
@@ -401,6 +413,7 @@ grouped_counts <- merged_counts %>%
 # Ausgabe der Ergebnisse
 grouped_counts
 ```
+
 Die allermeisten Konten sind also ausschließlich betrügerisch, jedoch mit vereinzelten Ausnahmen.
 
 Überprüfen, ob Transaktionen zwischen denselben Konten existieren.
@@ -411,6 +424,7 @@ data %>%
   filter(nameOrig == nameDest) %>%
   summarise(Count = n())
 ```
+
 Es gibt keine Transaktion zwischen dem selben Konto.
 
 ```{r}
@@ -420,4 +434,89 @@ data <- select(data, -nameOrig, -nameDest)
 write.csv(data, "Fraud_processed.csv", row.names = FALSE)
 ```
 
+```{r}
+filtered_df <- df %>%
+  filter(type == "CASH_OUT" | type == "TRANSFER")
+```
 
+# Ausgewählte Modelle {.scrollable}
+
+Wir haben schon bei den EDA festgestellt dass die bei uns feature engineerte variable flagFraud schon ganz gut Fraud Fälle finden kann. Deswegen haben wir unsere modelle dazu verwendet um die ergebnisse noch zu verbessern. Wir haben dazu drei modelle gewählt die mit so unbalancierte Daten umgehen können: Decision Tree, SVM, Random Forest. Um den modellen eficienter trenieren zu können haben wir nur an den daten treniert wo den transaktionstyp cash_out oder transfer war.
+
+### Decision Tree
+
+```{r}
+# Stratified allocation based on the combined column
+splitIndex <- createDataPartition(filtered_df$isFraud, p = 0.75, list = FALSE, times = 1)
+
+trainData <- filtered_df[splitIndex, ]
+testData <- filtered_df[-splitIndex, ]
+```
+
+```{r}
+# Train the model}
+model <- rpart(isFraud ~ ., data = trainData, method = "class")
+
+# Print the model output
+print(model)
+```
+
+```{r}
+rpart.plot(model)
+```
+
+```{r}
+# Make predictions
+predictions <- predict(model, testData, type = "class")
+
+# Evaluate the model using the caret package
+confusionMatrix(predictions, testData$isFraud)
+```
+
+```{r}
+# Train the SVM model
+svm_model <- svm(isFraud ~ ., data = trainData, kernel = "linear", cost = 1, scale = TRUE)
+
+# Predict on the test data
+predictions <- predict(svm_model, testData)
+
+# Evaluate the model
+conf_matrix <- confusionMatrix(predictions, testData$isFraud)
+print(conf_matrix)
+```
+
+```{r}
+# Train the model
+rf_model <- ranger(isFraud ~ ., data = trainData2, ntree = 300, importance = 'impurity')
+
+# Summarize the model
+print(summary(rf_model))
+
+# Predict on the test set
+predictions <- predict(rf_model, testData2)
+```
+
+```{r}
+predictions_vector <- predictions$predictions  # Extract predictions
+
+# Assess the model's performance
+actual <- testData2$isFraud
+confusion_matrix <- table(Predicted = predictions_vector, Actual = actual)
+
+# Print confusion matrix
+print(confusion_matrix)
+
+# Calculate accuracy
+accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
+print(paste("Accuracy:", accuracy))
+
+# Optionally, view variable importance
+importance <- importance(rf_model)
+print(importance)
+```
+
+
+```{r}
+# Plot variable importance
+plot(importance, type = 'o', col = 'blue', main = "Variable Importance")
+```
