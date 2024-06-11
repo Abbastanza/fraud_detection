@@ -1,0 +1,719 @@
+---
+title: "Vorhersage (Klassifikation) betrügerischer Kontotransaktionen"
+subtitle: "Solution Engineering in R"
+author: "Daniel Borsos, Valerie Högerle, Michaela Hubweber, Florian Ye"
+date: today
+embed-resources: true
+format:
+  revealjs:
+    scrollable: true
+    smaller: true
+    theme: solarized ##https://quarto.org/docs/presentations/revealjs/themes.html
+    slide-level: 2
+fig-align: center
+execute: 
+  warning: false
+---
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(caret)
+library(gridExtra)
+library(rpart)
+library(rpart.plot)
+library(e1071)
+library(class)
+library(randomForest)
+library(ranger)
+library(pROC)
+library(naivebayes)
+
+options(scipen=999)
+```
+
+# Recap: Milestone 1 {.scrollable}
+
+**Ziel** (Zusammenfassung)
+
+-   Betrügerische von legitimen Transaktionen unterscheiden / Muster oder Anomalien erkennen
+-   Modell für u.a. Vorhersage in shiny-Anwendung umsetzen
+
+**Daten**
+
+-   klar unbalancierte Zielvariable "isFraud": 99,87% ist kein Betrug
+-   sonstige Varibalen meist ohne Korrelation, z.B. Start-/Zielkonto, Betrag und Art der Transaktion
+-   Einzig Start- und Endguthaben der jeweiligen Konten korrelieren miteinander, auch aufgrund vieler Nullwerte
+
+# Milestone 2: Explorative Datenanalyse
+
+## Erste Einblicke in die Daten {.scrollable}
+
+```{r}
+# Read data
+data.full <- read.csv("Fraud.csv")
+# Show first rows of data
+head(data.full)
+```
+
+### Datenstruktur
+
+```{r}
+# Create new columns
+data.full <- data.full %>%
+  mutate(
+    change.balanceOrg = oldbalanceOrg - newbalanceOrig,
+    increase.balanceDest = newbalanceDest - oldbalanceDest,
+    # If receiver account has a balance of 0 and the sender account transfers the full amount
+    flagFraud = ifelse(newbalanceOrig == 0 & change.balanceOrg == amount, 1, 0)
+  )
+```
+
+```{r}
+# Change data types
+data.full$type <- as.factor(data.full$type)
+data.full$isFraud <- factor(data.full$isFraud, levels = c(0, 1), labels = c("No", "Yes"))
+data.full$isFlaggedFraud <- factor(data.full$isFlaggedFraud, levels = c(0, 1), labels = c("No", "Yes"))
+data.full$flagFraud <- factor(data.full$flagFraud, levels = c(0, 1), labels = c("No", "Yes"))
+```
+
+Im Verlauf der EDA lässt sich erkennen, dass beim Fraud die Veränderung der Kontostände eine wichtige Rolle spielen. Daher werden die Variablen "change.balanceOrg", "increase.balanceDest" und "flagFraud" erstellt.
+
+-   "change.balanceOrg": Differenz zwischen dem alten und neuen Kontostand des Absenders
+-   "increase.balanceDest": Differenz zwischen dem neuen und alten Kontostand des Empfängers
+-   "flagFraud": Wenn der Empfänger einen Kontostand von 0 hat und der Absender den gesamten Betrag überweist, wird die Variable auf 1 gesetzt.
+
+```{r}
+# Show data structure
+str(data.full)
+```
+
+### Fehlende Werte
+
+```{r}
+# Check for missing values
+num_missing_values <- sum(is.na(data.full))
+print(paste("Anzahl fehlender Werte:", num_missing_values))
+```
+
+### Aufverteilung der abhängigen Variable
+
+```{r}
+# Show isFraud distribution in percentage
+print("isFraud Verteilung in Prozent")
+round(table(data.full$isFraud)/nrow(data.full)*100, 2)
+# Show isFlaggedFraud distribution in percentage
+print("isFlaggedFraud Verteilung in absoluten Zahlen")
+table(data.full$isFlaggedFraud)
+# Show flagFraud distribution in percentage
+print("Selbst erstellte Variable flagFraud Verteilung in Prozent")
+round(table(data.full$flagFraud)/nrow(data.full)*100, 2)
+```
+
+Bei isFlaggedFraud ist die Anzahl der betrügerischen Transaktionen mit 16 (von \> 6 Mio) sehr gering und wird daher aus dem Datensatz entfernt. Bei dem neu erstellten flagFraud ist zu sehen, dass sie eine ähnliche Verteilung wie isFraud aufweist.
+
+```{r}
+# Remove isFlaggedFraud
+data <- select(data.full, -isFlaggedFraud)
+```
+
+## Univariate Analyse {.scrollable}
+
+Numerische Variablen:
+
+```{r out.width = "0.9\\linewidth", fig.width = 8, fig.height = 8, fig.align = "center"}
+# Plot histogram for all numeric variables
+numeric_columns <- colnames(select_if(data, is.numeric)) #select numeric column names
+
+par(mfrow=c(3,3))
+for (col_name in numeric_columns) {
+  hist(data[[col_name]], main = "", xlab = col_name)
+}
+par(mfrow=c(1,1))
+```
+
+Für die rechtsschiefen Variablen wird eine Log-Transformation durchgeführt, um die Verteilung zu normalisieren.
+
+```{r out.width = "0.9\\linewidth", fig.width = 8, fig.height = 8, fig.align = "center"}
+# Log transformation for all numeric variables
+right_skewed_columns <- c("amount", "oldbalanceOrg", "newbalanceOrig", "oldbalanceDest", "newbalanceDest")
+
+# Apply log transformation
+for (col in right_skewed_columns) {
+  data[[col]] <- log10(data[[col]] + 1)
+}
+
+# Plot histogram for all numeric variables after log transformation
+par(mfrow=c(3,3))
+for (col_name in numeric_columns) {
+  hist(data[[col_name]], main = "", xlab = col_name)
+}
+par(mfrow=c(1,1))
+```
+
+**Steps**
+
+-   1 Step entspricht einer Stunde (30 Tage Simulation)
+-   ungleichmäßige Simulation ohne erkennbares Muster (z.B. Wochenenden)
+-   nur 2 Steps ohne Fraud, sonst durchschnittlich 11 Betrugsfälle pro Stunde (max. 40)
+
+**amount**
+
+-   Die Beträge der Transaktionen liegen v.a. zwischen 1000,00 und 1.000.000,00 (Währung nicht angegeben)
+-   der Median liegt bei 74.872,00, Ausreißer gehen bis 92 Mio.
+
+**Balance**
+
+Es liegen sehr viele Nullwerte vor:
+
+-   33% bei den Absendern vor der Transaktion, 57% nach der Transaktion
+-   42% der Empfänger vor der Transaktion, 38% nach der Transaktion
+
+Kontostände außerhalb der Nullwerte:
+
+-   die Absender hatten (wenn nicht 0) meist zwischen 1000,00 bis 10.000,00 auf dem Konto, häufige Werte gehen bis 10 Mio.
+-   die Empfänger hatten (wenn nicht 0) meist zwischen 100.000 und 10 Mio (vor der Transaktion) auf dem Konto
+
+Kategoriale Variablen:
+
+```{r out.width = "0.9\\linewidth", fig.width = 8, fig.height = 8, fig.align = "center"}
+# Plot barplot for all categorical variables
+categorical_columns <- colnames(select_if(data, is.factor)) #select categorical column names
+
+par(mfrow=c(2,2))
+for (col_name in categorical_columns) {
+  barplot(table(data[[col_name]]), main = col_name)
+}
+par(mfrow=c(1,1))
+```
+
+Der Anteil an isFraud und FlagFraud liegt je bei 0,13%.
+
+Die Transaktionen Auszahlung und Bezahlung haben einen Anteil von ca. je ein Drittel, Einzahlung ist mit 22% ebenfalls oft. Überweisungen nehmen gut 8% ein, Debit weniger als 1%.
+
+```{r out.width = "0.9\\linewidth", fig.width = 8, fig.height = 8, fig.align = "center"}
+# Gestapelter Bar-Chart für Tätigkeiten
+
+# Create a summary data frame
+summary_data <- table(data$type)
+
+# Convert the summary data frame to a data frame
+summary_df <- as.data.frame(summary_data)
+summary_df <- summary_df[order(-summary_df$Freq), ]
+summary_df <- data.frame(type = summary_df$Var1, Freq = summary_df$Freq)
+summary_df$type <- factor(summary_df$type, levels = summary_df$type)
+
+# Calculate percentages
+total_count <- sum(summary_df$Freq)
+summary_df$Percentage <- (summary_df$Freq / total_count) * 100
+
+# Use the "Set1" color palette
+ggplot(summary_df, aes(y = "", x = Freq, fill = type)) +
+geom_bar(stat = "identity") +
+    geom_text(aes(label = paste0(round(Percentage, 1), "%")), position = position_stack(vjust = 0.5), color = "black", size = 3) + # Add percentage labels
+  scale_fill_brewer(palette = "Set1") +  # Use Set1 color palette
+  labs(title = "Transaktionskategorien",
+       y = "Type",
+       x = "Count") +
+  theme_minimal() +
+  scale_x_continuous(sec.axis = sec_axis(~(. / total_count * 100), name = "Percentage")) +
+  theme(axis.title.x = element_blank())  # Hide x-axis title
+```
+
+## Bivariate Analyse {.scrollable}
+
+Korrelationsmatrix:
+
+```{r out.width = "0.9\\linewidth", fig.width = 14, fig.height = 12, fig.align = "center"}
+# Plot correlation matrix
+correlation_matrix <- cor(data[numeric_columns])
+corrplot::corrplot.mixed(correlation_matrix, order = 'AOE')
+```
+
+```{r out.width = "0.9\\linewidth", fig.width = 10, fig.height = 12, fig.align = "center"}
+# Boxplots by fraud status
+#ar(mfrow=c(4,4))
+#for (col_name in numeric_columns) {
+#  boxplot(data[[col_name]][data$isFraud == "No"], main = paste(col_name, "isFraud = No"), horizontal = FALSE)
+#  boxplot(data[[col_name]][data$isFraud == "Yes"], main = paste(col_name, "isFraud = Yes"), horizontal = FALSE)
+#}
+#par(mfrow=c(1,1))
+```
+
+Eine hohe Korrelation liegt als je zwischen altem und neuen Kontostand vor (sowohl beim Sender als auch beim Empfänger). Ein gewisser positiver Zusammenhang könnte zwischen dem Betrag und dem Empfängerkonto liegen. Der negative Zusammenhang zwischen change.balanceOrg und dem neuen Kontostand des Senders ist nachvollziehbar (je mehr Geld vom Konto weggeht, desto kleiner ist der Kontostand dort anschließend.)
+
+Density Plots im Vergleich nach Fraud-Status:
+
+```{r}
+# Function for generating density plots
+create_density_plots <- function(data, numeric_columns, main_title) {
+  # Create a list to store plots
+  plot_list <- list()
+  
+  # Generate density plots for each numeric column
+  for (col_name in numeric_columns) {
+    p <- ggplot(data, aes_string(x = col_name, color = "isFraud")) +
+      geom_density() +
+      labs(title = "", x = col_name, y = "Density") +
+      theme_minimal() +
+      scale_color_manual(values = c("No" = "coral1", "Yes" = "aquamarine3")) +
+      theme(legend.title = element_blank()) +
+      # Add vertical lines for the mean of each category
+      geom_vline(data = data %>% filter(isFraud == "No"), aes_string(xintercept = paste0("mean(", col_name, ", na.rm=TRUE)")), 
+                 color = "coral1", linetype = "dashed", size = 0.5) +
+      geom_vline(data = data %>% filter(isFraud == "Yes"), aes_string(xintercept = paste0("mean(", col_name, ", na.rm=TRUE)")), 
+                 color = "aquamarine3", linetype = "dashed", size = 0.5)
+    plot_list[[col_name]] <- p
+  }
+  
+  # Combine plots into a grid layout
+  grid.arrange(grobs = plot_list, ncol = 2, top = main_title)
+}
+```
+
+```{r out.width = "0.9\\linewidth", fig.width = 10, fig.height = 12, fig.align = "center"}
+create_density_plots(data, numeric_columns, "Density Plots nach isFraud")
+```
+
+-   Betrügerische Transaktionen haben tendenziell höhere Beträge.
+-   oldbalanceOrg liegt bei notFraud bei einem Großteil bei 0. Bei Fraud ist dies nicht der Fall
+-   change.balanceOrg: der abgegangene Betrag ist bei Fraud klar höher.
+
+Barplot nach Typ und Fraud-Status:
+
+```{r out.width = "0.9\\linewidth", fig.width = 10, fig.height = 4, fig.align = "center"}
+# Calculate proportions for the text annotations
+data_summary <- data %>%
+  group_by(type, isFraud) %>%
+  summarise(count = n()) %>%
+  mutate(proportion = count / sum(count)) %>%
+  filter(isFraud == 1) %>%
+  mutate(label = scales::percent(proportion, accuracy = 0.001))
+
+# Create the stacked bar chart with text annotations
+plot <- ggplot(data, aes(x = type, fill = isFraud)) +
+  geom_bar(position = "fill") +
+  geom_text(data = data_summary, aes(x = type, y = 0.13, label = label), vjust = -0.5) +
+  labs(title = "Anteil betrügerischer Aktivitäten je Transaktion",
+       x = "Transaktionstype",
+       y = "Proportion",
+       fill = "Is Fraud") +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 0.001)) +
+  theme_minimal()
+
+# Display the plot
+print(plot)
+
+```
+
+```{r out.width = "0.9\\linewidth", fig.width = 10, fig.height = 4, fig.align = "center"}
+ggplot(data, aes(x = type, fill = isFraud)) +
+  geom_bar(position = "dodge") +
+  facet_wrap(~ isFraud, scales = "free_y") +
+  labs(title = "Verteilung der types nach isFraud", x = "", y = "Count") +
+  theme_minimal()
+```
+
+Zu erkennen: Es sind nur betrügerische Transaktionen bei den Typen "CASH_OUT" und "TRANSFER" vorhanden. Diese werden näher betrachtet.
+
+CASH_OUT Transaktionen:
+
+```{r out.width = "0.9\\linewidth", fig.width = 10, fig.height = 12, fig.align = "center"}
+create_density_plots(data %>% filter(type == "CASH_OUT"), numeric_columns, "Density Plots für CASH_OUT Transaktionen")
+```
+
+-   oldbalanceOrig: bei notFraud liegt der Betrag größtenteils bei 0, bei Fraud ist der Kontostand so ziemlich nie bei 0. Im Durchschnitt auch eindeutig höher.
+-   newbalanceOrig: bei Fraud liegt der Betrag dann größtenteils bei 0 (Konto geplündert).
+-   change.balanceOrg: nochmal zu sehen, dass der abgegangene Betrag bei Fraud klar höher ist.
+
+TRANSFER Transaktionen
+
+```{r out.width = "0.9\\linewidth", fig.width = 10, fig.height = 10, fig.align = "center"}
+create_density_plots(data %>% filter(type == "TRANSFER"), numeric_columns, "Density Plots für TRANSFER Transaktionen")
+```
+
+-   oldbalanceOrig: bei notFraud liegt der Betrag größtenteils bei 0, bei Fraud ist der Kontostand so ziemlich nie bei 0. Im Durchschnitt auch eindeutig höher.
+-   oldbalanceDest & newbalanceDest: das Seltsame ist, dass Fraud ziemlich genau bei 0, aber newbalanceDest ebenfalls bei 0 liegt.
+-   change.balanceOrg: nochmal zu sehen, dass der abgegangene Betrag bei Fraud klar höher ist.
+
+Confusion Matrix für flagFraud:
+
+```{r}
+# Create confusion matrix for flagFraud
+confusion_matrix <- table(data$flagFraud, data$isFraud)
+# Convert confusion matrix to a data frame
+cm_df <- as.data.frame(confusion_matrix)
+# Rename columns for better understanding
+colnames(cm_df) <- c("isFraud", "flagFraud", "Frequency")
+# Plot the confusion matrix
+ggplot(cm_df, aes(x = flagFraud, y = isFraud, fill = Frequency)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = Frequency), col = "white") +
+  labs(title = "Confusion Matrix", x = "flagFraud", y = "isFraud") +
+  theme_minimal()
+```
+
+*Überprüfung der Konten*
+
+```{r}
+# Filter df to isFraud == "Yes"
+data.fraud.yes <- data %>% filter(isFraud == "Yes")
+# Filter df to isFraud == No"
+data.fraud.no <- data %>% filter(isFraud == "No")
+```
+
+Überprüfen, ob das Konto, von dem die Transaktion ausgeht, mehrere betrügerische Transaktionen durchführt.
+
+```{r}
+# Count unique nameOrig
+data.fraud.yes %>%
+  count(nameOrig) %>%
+  count(n) %>%
+  rename(nameOrig_count = n, Frequency = nn)
+```
+
+Die allermeisten Absender (99,7%) kommen ein einziges Mal vor, der Rest taucht maximal 3x als Absender auf.
+
+Überprüfen, ob das Konto, auf das die Transaktion erfolgt, mehrere betrügerische Transaktionen erhält.
+
+```{r}
+# Count unique nameDest
+data.fraud.yes %>%
+  count(nameDest) %>%
+  count(n) %>%
+  rename(nameDest_count = n, Frequency = nn)
+```
+
+Pro Zielkonto gibt es also maximal 2 Betrugsfälle. Auffallend ist in dem Datensatz jedoch, dass Zielkonten wesentlich häufiger vorkommen: 35% sind nur einmalig Ziel von Transaktionen, einzelne Konten tauchen über 100x als Ziel auf. Dennoch wird kein "klassisches Betrugskonto" gefunden.
+
+Überprüfen, wie viele Konten, von dem die Transaktion ausgehen, auch Transaktionen ohne Betrug durchführt haben.
+
+```{r}
+# Extrahiere die nameOrigs aus den Fraud-Daten
+fraud_names <- data.fraud.yes %>% select(nameOrig) %>% distinct()
+# Filter die Non-Fraud-Daten nach den Fraud-NameOrigs
+fraud_nameOrg_in_nonFraud <- data.fraud.no %>% filter(nameOrig %in% fraud_names$nameOrig)
+
+# Count occurrences of nameOrig in the filtered non-fraud data
+fraud_nameOrg_in_nonFraud_count <- fraud_nameOrg_in_nonFraud %>%
+  count(nameOrig) %>%
+  rename(Fraud_nameOrg_in_nonFraud = n)
+
+# Merge the fraud yes data with the non fraud counts
+merged_counts <- data.fraud.yes %>%
+  left_join(fraud_nameOrg_in_nonFraud_count, by = "nameOrig")
+
+# Replace NA values in Fraud_nameOrg_in_nonFraud with 0
+merged_counts <- merged_counts %>%
+  mutate(Fraud_nameOrg_in_nonFraud = ifelse(is.na(Fraud_nameOrg_in_nonFraud), 0, Fraud_nameOrg_in_nonFraud))
+
+# Group by Non_Fraud_Count and count the occurrences
+grouped_counts <- merged_counts %>%
+  count(Fraud_nameOrg_in_nonFraud) %>%
+  rename(Frequency = n)
+
+# Ausgabe der Ergebnisse
+grouped_counts
+```
+
+Die allermeisten Konten sind also ausschließlich betrügerisch, jedoch mit vereinzelten Ausnahmen.
+
+Überprüfen, ob Transaktionen zwischen denselben Konten existieren.
+
+```{r}
+# Count where nameOrig equals nameDest without using equalName column
+data %>%
+  filter(nameOrig == nameDest) %>%
+  summarise(Count = n())
+```
+
+Es gibt keine Transaktion zwischen dem selben Konto.
+
+```{r}
+# Remove nameOrig and nameDest
+data <- select(data, -nameOrig, -nameDest, -step)
+```
+
+```{r}
+data <- data %>%
+  dplyr::filter(type == "CASH_OUT" | type == "TRANSFER")
+```
+
+# Ausgewählte Modelle {.scrollable}
+
+Wir haben bereits in der explorativen Datenanalyse (EDA) festgestellt, dass die von uns entwickelte Variable flagFraud bereits sehr gut in der Lage ist, Betrugsfälle zu identifizieren. Deshalb haben wir unsere Modelle genutzt, um die Ergebnisse weiter zu verbessern. Wir haben dazu drei Modelle ausgewählt, die gut mit unbalancierten Daten umgehen können: Decision Tree, Logistic Regression, Naiv Bays und Random Forest. Um das Training der Modelle effizienter zu gestalten, haben wir sie ausschließlich mit Daten trainiert, bei denen der Transaktionstyp entweder Cash-Out oder Transfer war.
+
+```{r}
+# Change categorical to factor
+data$isFraud <- as.factor(data$isFraud)
+#data$flagFraud <- as.factor(data$flagFraud)
+data$type <- as.factor(data$type)
+#data$nameDestType <- as.factor(data$nameDestType)
+```
+
+```{r}
+### Split data into training and test data ###
+# Create a column for the interaction between type and isFraud
+data$type_fraud <- interaction(data$type, data$isFraud)
+
+# Stratified allocation based on the combined column
+set.seed(10)
+splitIndex <- createDataPartition(data$type_fraud, p = 0.75, list = FALSE, times = 1)
+
+# Remove the combined column
+data$type_fraud <- NULL
+# Split the data into training and test data
+fullTrainData <- data[splitIndex, ]
+testData <- data[-splitIndex, ]
+
+
+### Split the training data into training and validation data ####
+fullTrainData$type_fraud <- interaction(fullTrainData$type, fullTrainData$isFraud)
+
+# Stratified allocation based on the isFraud column
+set.seed(10)
+trainSplitIndex <- createDataPartition(fullTrainData$type_fraud, p = 0.75, list = FALSE, times = 1)
+
+# Remove the combined column
+fullTrainData$type_fraud <- NULL
+# Split the training data into training and validation data
+trainData <- fullTrainData[trainSplitIndex, ]
+valData <- fullTrainData[-trainSplitIndex, ]
+```
+
+```{r}
+# Check the distribution of the target variable in the training and test data
+cat("Verteilung von 'isFraud' im Trainingsdatensatz:")
+round(prop.table(table(trainData$isFraud)), 4)
+cat("\nVerteilung von 'isFraud' im Testdatensatz:")
+round(prop.table(table(testData$isFraud)), 4)
+
+# Check the distribution of the type and target variable in the training and test data
+cat("\nVerteilung der Variablen 'type' und 'isFraud' im Trainingsdatensatz:")
+round(prop.table(table(trainData$type, trainData$isFraud)), 5)
+cat("\nVerteilung der Variablen 'type' und 'isFraud' im Testdatensatz:")
+round(prop.table(table(testData$type, testData$isFraud)), 5)
+
+```
+
+```{r}
+# Save the training and test data as csv
+#write.csv(trainData, "Fraud_train.csv", row.names = FALSE)
+#write.csv(testData, "Fraud_test.csv", row.names = FALSE)
+```
+
+## Baseline Modell {.scrollable}
+
+```{r}
+# Baseline-Model
+baseline_model <- function(data) {
+  rep(1, nrow(data))
+}
+```
+
+```{r}
+# Definiere eine Funktion, um die Metriken für das Modell zu berechnen und auszugeben
+get_model_metrics <- function(predictions_prob, actual_factor, threshold = 0.5) {
+  
+  # Klassifiziere basierend auf dem Schwellenwert
+  predictions_factor <- factor(ifelse(predictions_prob > threshold, "Yes", "No"), levels = c("No", "Yes"))
+
+  # Berechnung der Konfusionsmatrix
+  confusionMatrix <- confusionMatrix(predictions_factor, actual_factor, positive="Yes")
+  
+  # Ausgabe der Konfusionsmatrix
+  print("Konfusionsmatrix:")
+  print(confusionMatrix$table)
+  
+  # Berechnung von Recall und Precision
+  recall <- confusionMatrix$byClass['Sensitivity']
+  precision <- confusionMatrix$byClass['Precision']
+  
+  # Berechnung des F1-Score
+  f1_score <- 2 * (precision * recall) / (precision + recall)
+  
+  # Vorbereitung der Daten für die AUC-Berechnung
+  roc_curve <- roc(actual_factor, predictions_prob)
+  auc_score <- auc(roc_curve)
+  
+  # Ausgabe der Metriken
+  print(paste("Recall:", recall))
+  print(paste("Precision:", precision))
+  print(paste("F1-Score:", f1_score))
+  print(paste("AUC Score:", auc_score))
+}
+
+evaluate_model_performance <- function(model, test_data, threshold = 0.5) {
+  # Vorhersagen mit dem Modell für das Validierungsset als Wahrscheinlichkeiten
+  test_predictions_prob <- predict(model, newdata = test_data, type = "prob")[, "Yes"]
+  
+  # Umwandeln der tatsächlichen Werte in Faktoren
+  actual_factor <- factor(test_data$isFraud, levels = c("No", "Yes"))
+  
+  # Anwendung der Funktion, um die Metriken zu berechnen und auszugeben
+  get_model_metrics(test_predictions_prob, actual_factor, threshold)
+}
+```
+
+```{r}
+#baseline_predictions_factor <- factor(baseline_model(valData), levels = c("No", "Yes"))
+baseline_predictions_prob <- baseline_model(valData)
+actual_factor <- factor(valData$isFraud, levels = c("No", "Yes"))
+
+# Aufruf der Funktion mit den umgewandelten Daten
+get_model_metrics(baseline_predictions_prob, actual_factor)
+```
+
+## Modell Training {.scrollable}
+
+Die Modelle werden hier vorerst mit einem Teil der Trainingsdaten trainiert und mit dem Validierungsdatensatz evaluiert. \### Decision Tree
+
+```{r}
+# Festlegung von Gewichten für die Fälle
+case_weights <- rep(1, nrow(trainData))
+case_weights[trainData$isFraud == "Yes"] <- 100  # mehr Gewicht für Betrugsfälle
+
+# Trainiere ein Entscheidungsbaummodell
+decision_tree_model <- rpart(isFraud ~ ., data = trainData, method = "class", weights = case_weights)
+
+# Visualisierung des trainierten Modells
+rpart.plot(decision_tree_model, main = "Decision Tree Model")
+```
+
+```{r}
+evaluate_model_performance(decision_tree_model, valData)
+```
+
+### Logistische Regression
+
+```{r}
+# Training des logistischen Regressionsmodells
+logisticModel <- glm(isFraud ~ ., family = binomial(link = "logit"), data = trainData)
+```
+
+```{r}
+logistic_predictions_prob <- predict(logisticModel, newdata = valData, type = "response")
+get_model_metrics(logistic_predictions_prob, actual_factor, threshold = 0.5)
+```
+
+### Naive Bayes
+
+```{r}
+# Training des Naive Bayes Modells
+naiveBayesModel <- naive_bayes(isFraud ~ ., data = trainData, laplace = 1)
+```
+
+```{r}
+evaluate_model_performance(naiveBayesModel, valData)
+```
+
+### Random Forest
+
+```{r}
+# Training des RF Modells
+rf_model <- ranger(isFraud ~ ., data = trainData, importance = 'impurity', probability = TRUE)
+```
+
+```{r}
+# Predict on the test data
+predictions <- predict(rf_model, data = valData, type = "response")
+
+probabilities <- predictions$predictions[,2]
+
+# Convert probabilities to binary class prediction based on a threshold (default 0.5)
+predicted_classes <- ifelse(probabilities > 0.5, "Yes", "No")
+
+# Create confusion matrix
+conf_matrix <- confusionMatrix(as.factor(predicted_classes), as.factor(valData$isFraud), positive = "Yes")
+
+# Print the confusion matrix
+print(conf_matrix$table)
+
+# Recall - Also known as Sensitivity
+recall <- conf_matrix$byClass['Sensitivity']
+print(paste("Recall:", recall))
+
+# Precision - Also known as Positive Predictive Value
+precision <- conf_matrix$byClass['Pos Pred Value']
+print(paste("Precision:", precision))
+
+# F1-Score
+f1_score <- 2 * ((precision * recall) / (precision + recall))
+print(paste("F1-Score:", f1_score))
+
+# AUC Score
+roc_curve <- roc(valData$isFraud, probabilities)
+auc_score <- auc(roc_curve)
+print(paste("AUC Score:", auc_score))
+```
+
+Alle 4 Modelle zeigen bessere Ergebnisse als das Baseline-Modell. Das Decision Tree und Logistic Regression Modell haben sehr gute und ähnliche Ergebnisse, während das Naive Bayes Modell etwas schlechter abschneidet und Random Forest scheint das Beste zu sein. Im nächsten Schritt werden die Modelle mit dem gesamten Trainingsdatensatz trainiert und mit dem Testdatensatz evaluiert.
+
+## Modell Evaluation {.scrollable}
+
+```{r}
+# Decision Tree
+case_weights_full <- rep(1, nrow(fullTrainData)) # Festlegung von Gewichten für die Fälle
+case_weights_full[fullTrainData$isFraud == "Yes"] <- 100  # mehr Gewicht für Betrugsfälle
+decision_tree_model_full <- rpart(isFraud ~ ., data = fullTrainData, method = "class", weights = case_weights_full)
+evaluate_model_performance(decision_tree_model_full, testData)
+```
+
+```{r}
+# Logistic Regression
+actual_factor_test <- factor(testData$isFraud, levels = c("No", "Yes"))
+
+logisticModel_full <- glm(isFraud ~ ., family = binomial(link = "logit"), data = fullTrainData)
+logistic_predictions_prob_full <- predict(logisticModel_full, newdata = testData, type = "response")
+get_model_metrics(logistic_predictions_prob_full, actual_factor_test, threshold = 0.5)
+```
+
+```{r}
+# Naive Bayes
+naiveBayesModel_full <- naive_bayes(isFraud ~ ., data = fullTrainData, laplace = 1)
+evaluate_model_performance(naiveBayesModel_full, testData)
+```
+
+```{r}
+# RF
+rf_model_full <- ranger(isFraud ~ ., data = fullTrainData, ntree = 300, importance = 'impurity')
+# Predict on the test data
+predictions <- predict(rf_model, data = testData, type = "response")
+
+probabilities <- predictions$predictions[,2]
+
+# Convert probabilities to binary class prediction based on a threshold (default 0.5)
+predicted_classes <- ifelse(probabilities > 0.5, "Yes", "No")
+
+# Create confusion matrix
+conf_matrix <- confusionMatrix(as.factor(predicted_classes), as.factor(testData$isFraud), positive = "Yes")
+
+# Print the confusion matrix
+print(conf_matrix$table)
+
+# Recall - Also known as Sensitivity
+recall <- conf_matrix$byClass['Sensitivity']
+print(paste("Recall:", recall))
+
+# Precision - Also known as Positive Predictive Value
+precision <- conf_matrix$byClass['Pos Pred Value']
+print(paste("Precision:", precision))
+
+# F1-Score
+f1_score <- 2 * ((precision * recall) / (precision + recall))
+print(paste("F1-Score:", f1_score))
+
+# AUC Score
+roc_curve <- roc(testData$isFraud, probabilities)
+auc_score <- auc(roc_curve)
+print(paste("AUC Score:", auc_score))
+
+```
+
+```{r}
+importance <- importance(rf_model_full)
+# Plot variable importance
+plot(importance, type = 'o', col = 'blue', main = "Variable Importance")
+```
+
+Das Random Forest, Decision Tree und Logistic Regression Modell zeigen die besten Ergebnisse. Das Naive Bayes Modell schneidet wieder etwas schlechter ab. Die Modelle wurden mit dem gesamten Trainingsdatensatz wo type = cash_out oder transfer trainiert und mit dem Testdatensatz evaluiert. Da sich die Ergebnisse der Modelle nicht wesentlich unterscheiden, wird das Decision Tree Modell für die Vorhersage der Testdaten verwendet. Bei alle modelle wurde das flagFraud als wesentliche Variable verwendet.
